@@ -311,6 +311,124 @@ git push → GitHub Actions → Maven build → Docker build → Push ECR → De
 
 ---
 
+## Deploy lên AWS (Production)
+
+### Kiến trúc
+
+```
+Internet → ALB (port 80) → ECS Fargate (port 7007) → RDS PostgreSQL
+                                                    → GitHub API
+                                                    → ECR (Docker images)
+```
+
+### Thành phần AWS
+
+| Resource | Service | Chi tiết |
+|---|---|---|
+| Container | ECS Fargate | 0.5 vCPU / 1GB, cluster `talentradar` |
+| Database | RDS PostgreSQL 15 | db.t3.micro, 20GB |
+| Load Balancer | ALB | Port 80, health check `/api/health` |
+| Docker Registry | ECR | `backstage-idp`, keep 5 images |
+| Logs | CloudWatch | `/ecs/backstage-idp`, 14 days |
+| Network | VPC | `vpc-0cd7876498471bd2d` |
+| Subnets (public) | ALB + ECS | `subnet-02854133786503b81`, `subnet-00489741e1099fb56` |
+| Subnets (private) | RDS | `subnet-069de1eba9b989478`, `subnet-0ffb897f3e66cc6eb` |
+
+### GitHub Repository
+
+```
+https://github.com/kndkhoa/internal-developer-platform
+├── main     ← production (push triggers deploy)
+└── develop  ← development
+```
+
+### CI/CD Pipeline (GitHub Actions)
+
+**File:** `.github/workflows/deploy.yml`
+**Trigger:** push to `main`
+
+```
+Push to main → GitHub Actions:
+  1. yarn install
+  2. yarn tsc (type check)
+  3. yarn build:backend (bundle frontend + backend)
+  4. Docker build (packages/backend/Dockerfile)
+  5. Push image → ECR (backstage-idp:latest + :sha)
+  6. Update ECS task definition
+  7. Deploy ECS service (rolling update)
+```
+
+**GitHub Secrets cần set:**
+- `AWS_ACCESS_KEY_ID` — IAM user `kiro-deploy`
+- `AWS_SECRET_ACCESS_KEY` — IAM user `kiro-deploy`
+
+Set tại: https://github.com/kndkhoa/internal-developer-platform/settings/secrets/actions
+
+### Terraform — Provision Infrastructure
+
+**Folder:** `terraform/`
+
+```bash
+cd terraform
+
+# Tạo file terraform.tfvars (copy từ example)
+cp terraform.tfvars.example terraform.tfvars
+# Sửa: db_password, github_token
+
+# Chạy
+terraform init
+terraform plan
+terraform apply
+```
+
+**Terraform tạo:**
+- ECR repository + lifecycle policy
+- RDS PostgreSQL 15 (backstage database)
+- ALB + Target Group + Listener
+- ECS Task Definition + Service (Fargate)
+- IAM Roles (execution + task)
+- Security Groups (ALB, ECS, RDS)
+- CloudWatch Log Group
+
+**Outputs sau khi apply:**
+- `backstage_url` — URL truy cập Backstage
+- `rds_endpoint` — Database endpoint
+- `ecr_repository_url` — ECR URL
+
+### Quy trình deploy lần đầu
+
+```
+1. Set GitHub Secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+2. cd terraform && terraform apply (tạo infra)
+3. Merge develop → main (trigger pipeline)
+4. Pipeline build + push ECR + deploy ECS
+5. Truy cập Backstage qua ALB URL
+```
+
+### Quy trình deploy các lần sau
+
+```
+1. Code trên branch develop
+2. Merge develop → main
+3. Pipeline tự động: build → ECR → ECS (rolling update)
+```
+
+### app-config.production.yaml
+
+Sử dụng environment variables (inject từ ECS task definition):
+
+| Env Var | Giá trị |
+|---|---|
+| APP_BASE_URL | `http://<ALB_DNS>` |
+| BACKEND_BASE_URL | `http://<ALB_DNS>` |
+| POSTGRES_HOST | RDS endpoint |
+| POSTGRES_PORT | 5432 |
+| POSTGRES_USER | backstage |
+| POSTGRES_PASSWORD | (từ terraform.tfvars) |
+| GITHUB_TOKEN | (từ terraform.tfvars) |
+
+---
+
 ## Lệnh start đầy đủ (cần nhớ)
 
 ```bash
@@ -332,3 +450,5 @@ yarn workspace app start --config ../../app-config.yaml
 | 2024-08-19 | Scaffolder: tạo Spring Boot template với Java 21, Maven, Docker |
 | 2024-08-19 | Nâng cấp template: thêm GitHub Actions CI/CD, ECR push, ECS Fargate deploy, Terraform |
 | 2024-08-19 | Tạo GUIDELINE.md + hook PostTaskExec để tự nhắc update |
+| 2024-08-19 | Push source lên GitHub: kndkhoa/internal-developer-platform |
+| 2024-08-19 | CI/CD pipeline + Terraform infrastructure cho deploy Backstage lên AWS ECS Fargate |
