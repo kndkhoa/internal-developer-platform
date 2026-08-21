@@ -1,0 +1,5 @@
+# Copy this file to terraform.tfvars and fill in values
+# DO NOT commit terraform.tfvars to git!
+
+db_password  = "your-secure-password-here"
+github_token = "ghp_xxxxxxxxxxxxxxxxxxxx"
