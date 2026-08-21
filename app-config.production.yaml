@@ -21,6 +21,14 @@ backend:
     methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
     credentials: true
 
+  csp:
+    connect-src: ["'self'", 'http:', 'https:']
+    upgrade-insecure-requests: false
+
+  # Disable HSTS since we don't have HTTPS yet
+  helmet:
+    hsts: false
+
 auth:
   providers:
     guest:
