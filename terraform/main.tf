@@ -266,8 +266,8 @@ resource "aws_lb_target_group" "backstage" {
     unhealthy_threshold = 3
     timeout             = 10
     interval            = 30
-    path                = "/api/health"
-    matcher             = "200"
+    path                = "/"
+    matcher             = "200,301,302"
   }
 
   tags = local.common_tags
