@@ -318,6 +318,7 @@ resource "aws_ecs_task_definition" "backstage" {
         { name = "POSTGRES_USER", value = var.db_username },
         { name = "POSTGRES_PASSWORD", value = var.db_password },
         { name = "GITHUB_TOKEN", value = var.github_token },
+        { name = "PGSSLMODE", value = "require" },
       ]
 
       logConfiguration = {

@@ -13,6 +13,8 @@ backend:
       port: ${POSTGRES_PORT}
       user: ${POSTGRES_USER}
       password: ${POSTGRES_PASSWORD}
+      ssl:
+        rejectUnauthorized: false
 
   cors:
     origin: ${APP_BASE_URL}
