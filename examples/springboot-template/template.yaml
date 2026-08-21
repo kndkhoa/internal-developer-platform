@@ -1,0 +1,216 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-service-template
+  title: Spring Boot Service (AWS ECS Fargate)
+  description: Tạo service Spring Boot 3 + CI/CD (GitHub Actions) + ECR + ECS Fargate deployment + Terraform
+  tags:
+    - java
+    - spring-boot
+    - aws
+    - ecs
+    - recommended
+spec:
+  owner: user:guest
+  type: service
+
+  parameters:
+    - title: Service Information
+      required:
+        - name
+        - description
+        - groupId
+        - artifactId
+        - javaPackage
+      properties:
+        name:
+          title: Service Name
+          type: string
+          description: Tên service (ví dụ payment-service)
+          ui:autofocus: true
+          pattern: '^[a-z0-9-]+$'
+          ui:help: 'Chỉ dùng chữ thường, số và dấu gạch ngang'
+        description:
+          title: Description
+          type: string
+          description: Mô tả ngắn về service
+        groupId:
+          title: Group ID
+          type: string
+          description: Maven Group ID
+          default: com.company
+        artifactId:
+          title: Artifact ID
+          type: string
+          description: Maven Artifact ID
+        javaPackage:
+          title: Java Package
+          type: string
+          description: Package name (ví dụ com.company.paymentservice)
+          default: com.company.myservice
+        owner:
+          title: Owner
+          type: string
+          description: Team sở hữu service
+          default: team-backend
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+
+    - title: AWS Configuration
+      required:
+        - awsAccountId
+        - ecsClusterName
+        - vpcId
+        - subnetIds
+      properties:
+        awsAccountId:
+          title: AWS Account ID
+          type: string
+          description: AWS Account ID (12 digits)
+          default: '787309525126'
+          pattern: '^\d{12}$'
+        ecsClusterName:
+          title: ECS Cluster Name
+          type: string
+          description: Tên ECS cluster đã có sẵn
+          default: talentradar
+        vpcId:
+          title: VPC ID
+          type: string
+          description: VPC ID để deploy
+          default: 'vpc-0cd7876498471bd2d'
+          pattern: '^vpc-[a-z0-9]+$'
+        subnetIds:
+          title: Subnet IDs
+          type: string
+          description: Comma-separated subnet IDs (ít nhất 2 subnets ở 2 AZ khác nhau)
+          default: 'subnet-02854133786503b81,subnet-00489741e1099fb56'
+        environment:
+          title: Environment
+          type: string
+          enum:
+            - dev
+            - staging
+            - production
+          default: dev
+          description: Môi trường deploy
+        taskCpu:
+          title: Task CPU
+          type: string
+          enum:
+            - '256'
+            - '512'
+            - '1024'
+            - '2048'
+          enumNames:
+            - '0.25 vCPU'
+            - '0.5 vCPU'
+            - '1 vCPU'
+            - '2 vCPU'
+          default: '512'
+        taskMemory:
+          title: Task Memory
+          type: string
+          enum:
+            - '512'
+            - '1024'
+            - '2048'
+            - '4096'
+          enumNames:
+            - '512 MB'
+            - '1 GB'
+            - '2 GB'
+            - '4 GB'
+          default: '1024'
+        desiredCount:
+          title: Desired Task Count
+          type: number
+          default: 1
+          description: Số task chạy ban đầu
+        enableAutoScaling:
+          title: Enable Auto Scaling
+          type: boolean
+          default: false
+        containerPort:
+          title: Container Port
+          type: number
+          default: 8080
+          description: Port mà Spring Boot lắng nghe
+
+    - title: Repository Location
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - kndkhoa
+
+    - title: AWS Credentials (for GitHub Actions CI/CD)
+      description: "AWS credentials sẽ được tự động set từ cấu hình hệ thống"
+      properties:
+        _awsNote:
+          title: ""
+          type: "string"
+          description: "AWS credentials sẽ được tự động inject vào GitHub Secrets từ cấu hình Backstage"
+          ui:widget: hidden
+
+  steps:
+    - id: fetch-base
+      name: Generate Code Skeleton
+      action: fetch:template
+      input:
+        url: ./content
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          groupId: ${{ parameters.groupId }}
+          artifactId: ${{ parameters.artifactId }}
+          javaPackage: ${{ parameters.javaPackage }}
+          packagePath: ${{ parameters.javaPackage | replace(".", "/") }}
+          owner: ${{ parameters.owner }}
+          awsAccountId: ${{ parameters.awsAccountId }}
+          awsRegion: ap-southeast-1
+          ecsClusterName: ${{ parameters.ecsClusterName }}
+          vpcId: ${{ parameters.vpcId }}
+          subnetIds: ${{ parameters.subnetIds }}
+          environment: ${{ parameters.environment }}
+          taskCpu: ${{ parameters.taskCpu }}
+          taskMemory: ${{ parameters.taskMemory }}
+          desiredCount: ${{ parameters.desiredCount }}
+          enableAutoScaling: ${{ parameters.enableAutoScaling }}
+          containerPort: ${{ parameters.containerPort }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: private
+        secrets:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}

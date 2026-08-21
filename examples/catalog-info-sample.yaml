@@ -1,0 +1,74 @@
+---
+# ===== FILE MẪU: Đặt file này ở root mỗi repo (tên: catalog-info.yaml) =====
+
+# 1. Component chính (service/website/library)
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: my-service                    # Tên unique trong catalog
+  description: "Mô tả ngắn về service"
+  annotations:
+    # --- GitHub ---
+    github.com/project-slug: my-org/my-service
+    # --- Hoặc GitLab ---
+    # gitlab.com/project-slug: my-group/my-service
+    # gitlab.com/project-id: "12345"
+
+    # Thêm links hữu ích (optional)
+    # backstage.io/techdocs-ref: dir:.
+  tags:
+    - java
+    - spring-boot
+  links:
+    - url: https://my-service.example.com
+      title: Production
+      icon: dashboard
+spec:
+  type: service                       # service | website | library | documentation
+  lifecycle: production               # experimental | development | production | deprecated
+  owner: team-backend                 # team hoặc user sở hữu (phải match với Group/User trong catalog)
+  system: my-system                   # (optional) thuộc system nào
+  dependsOn:
+    - resource:my-database            # phụ thuộc resource nào
+    - component:auth-service          # phụ thuộc component nào
+  providesApis:
+    - my-service-api                  # expose API nào
+  consumesApis:
+    - payment-api                     # consume API nào
+
+---
+# 2. API mà service expose (optional - nếu service có API)
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: my-service-api
+  description: "REST API của my-service"
+spec:
+  type: openapi                       # openapi | asyncapi | graphql | grpc
+  lifecycle: production
+  owner: team-backend
+  system: my-system
+  definition: |
+    openapi: "3.0.0"
+    info:
+      title: My Service API
+      version: 1.0.0
+    paths:
+      /health:
+        get:
+          summary: Health check
+          responses:
+            '200':
+              description: OK
+
+---
+# 3. Resource (database, queue... optional)
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: my-database
+  description: "PostgreSQL database cho my-service"
+spec:
+  type: database                      # database | s3-bucket | queue | redis
+  owner: team-backend
+  system: my-system

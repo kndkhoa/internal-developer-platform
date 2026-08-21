@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Remind to update GUIDELINE.md",
+      "trigger": "PostTaskExec",
+      "description": "When a task completes, remind to document new features/changes in GUIDELINE.md",
+      "action": {
+        "type": "agent",
+        "prompt": "A task has just been completed. Check if this task involved adding a new feature, plugin, configuration, or any significant change to the Backstage project. If it did, update the GUIDELINE.md file at the project root to document what was done — add it to the relevant section (Cấu hình đã thực hiện, Changelog, or TODO). Keep the documentation concise and in the same style as existing entries."
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description }}
+  annotations:
+    github.com/project-slug: kndkhoa/${{ values.name }}
+    backstage.io/techdocs-ref: dir:.
+    amazon.com/ecr-repository-arn: arn:aws:ecr:${{ values.awsRegion }}:${{ values.awsAccountId }}:repository/${{ values.name }}
+    amazon.com/ecs-service-arn: arn:aws:ecs:${{ values.awsRegion }}:${{ values.awsAccountId }}:service/${{ values.ecsClusterName }}/${{ values.name }}-service
+  tags:
+    - java
+    - spring-boot
+    - aws
+    - ecs-fargate
+  links:
+    - url: https://${{ values.awsRegion }}.console.aws.amazon.com/ecs/v2/clusters/${{ values.ecsClusterName }}/services/${{ values.name }}-service
+      title: ECS Console
+      icon: cloud
+    - url: https://${{ values.awsRegion }}.console.aws.amazon.com/cloudwatch/home?region=${{ values.awsRegion }}#logsV2:log-groups/log-group/$252Fecs$252F${{ values.name }}
+      title: CloudWatch Logs
+      icon: dashboard
+spec:
+  type: service
+  lifecycle: production
+  owner: ${{ values.owner }}
+  dependsOn:
+    - resource:${{ values.name }}-ecr
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ${{ values.name }}-ecr
+  description: ECR repository for ${{ values.name }}
+  annotations:
+    amazon.com/ecr-repository-arn: arn:aws:ecr:${{ values.awsRegion }}:${{ values.awsAccountId }}:repository/${{ values.name }}
+spec:
+  type: container-registry
+  owner: ${{ values.owner }}

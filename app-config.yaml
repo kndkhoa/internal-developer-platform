@@ -1,6 +1,6 @@
 app:
   title: Scaffolded Backstage App
-  baseUrl: http://localhost:3000
+  baseUrl: http://localhost:3001
 
   # Enable all packages by default, this will discover packages from packages/app/package.json
   packages: all
@@ -37,7 +37,7 @@ backend:
     # Content-Security-Policy directives follow the Helmet format: https://helmetjs.github.io/#reference
     # Default Helmet Content-Security-Policy values can be removed by setting the key to false
   cors:
-    origin: http://localhost:3000
+    origin: http://localhost:3001
     methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
     credentials: true
   # This is for local development only, it is not recommended to use this in production
@@ -79,7 +79,7 @@ proxy:
 techdocs:
   builder: 'local' # Alternatives - 'external'
   generator:
-    runIn: 'docker' # Alternatives - 'local'
+    runIn: 'local' # Alternatives - 'docker'
   publisher:
     type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
 
@@ -121,11 +121,23 @@ catalog:
       rules:
         - allow: [Template]
 
+    # Spring Boot template
+    - type: file
+      target: ../../examples/springboot-template/template.yaml
+      rules:
+        - allow: [Template]
+
     # Local example organizational data
     - type: file
       target: ../../examples/org.yaml
       rules:
         - allow: [User, Group]
+
+    # GitHub private repo
+    - type: url
+      target: https://github.com/kndkhoa/talentradar/blob/main/catalog-info.yaml
+      rules:
+        - allow: [Component, System, API, Resource, Location]
 
     ## Uncomment these lines to add more example data
     # - type: url
@@ -136,6 +148,16 @@ catalog:
     #   target: https://github.com/backstage/backstage/blob/master/packages/catalog-model/examples/acme-corp.yaml
     #   rules:
     #     - allow: [User, Group]
+
+  # GitHub auto-discovery: tự quét tất cả repo của kndkhoa, tìm catalog-info.yaml
+  providers:
+    githubDiscovery:
+      kndkhoa:
+        type: github-discovery
+        url: https://github.com/kndkhoa/*/blob/main/catalog-info.yaml
+        schedule:
+          frequency: { minutes: 5 }
+          timeout: { minutes: 3 }
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
